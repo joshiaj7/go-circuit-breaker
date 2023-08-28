@@ -29,8 +29,10 @@ type CircuitBreaker interface {
 	GetTripWarning() (bool, error)
 	GetWindowDurationStr() string
 	IsExceedingThreshold(amount int) bool
+	IsExceedingWarningThreshold(amount int) bool
 	SetActive(active bool)
 	SetThreshold(threshold int)
+	SetWarningThreshold(threshold int)
 	UpdateLatestBucketsValue(amount int) error
 	UpdateTrip(isTripped bool)
 	UpdateTripWarning(isTripped bool)
@@ -42,19 +44,18 @@ type circuitBreaker struct {
 	Active            bool
 	Buckets           []*Bucket
 	CacheTTL          time.Duration
-	ConfigName        string
 	FeatureName       string
-	HeadKeys          []string
 	Threshold         int
 	TripKey           string
 	WarningAlertKey   string
+	WarningThreshold  int
 	WindowDuration    time.Duration
 	WindowDurationStr string
 }
 
 func NewCircuitBreaker(
-	cache Cache,
 	buckets []*Bucket,
+	cache Cache,
 	cacheTTL time.Duration,
 	featureName string,
 	windowDuration time.Duration,
@@ -66,7 +67,6 @@ func NewCircuitBreaker(
 		Buckets:        buckets,
 		CacheTTL:       cacheTTL,
 		FeatureName:    featureName,
-		HeadKeys:       []string{},
 		Threshold:      math.MaxInt,
 		WindowDuration: windowDuration,
 	}
@@ -112,6 +112,14 @@ func (c *circuitBreaker) IsExceedingThreshold(amount int) bool {
 	}
 
 	return c.CalculateWindowValue()+amount >= c.Threshold
+}
+
+func (c *circuitBreaker) IsExceedingWarningThreshold(amount int) bool {
+	if !c.Active {
+		return false
+	}
+
+	return c.CalculateWindowValue()+amount >= c.WarningThreshold
 }
 
 // GenerateKeys will generate keys within window duration
@@ -174,6 +182,10 @@ func (c *circuitBreaker) SetActive(active bool) {
 // SetThreshold will set threshold for circuit breaker
 func (c *circuitBreaker) SetThreshold(threshold int) {
 	c.Threshold = threshold
+}
+
+func (c *circuitBreaker) SetWarningThreshold(threshold int) {
+	c.WarningThreshold = threshold
 }
 
 // UpdateLatestBucketsValue will update / create latest value

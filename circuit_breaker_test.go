@@ -68,8 +68,8 @@ func TestCircuitBreaker_NewCircuitBreaker(t *testing.T) {
 			mocks := fixture.NewCircuitBreakerMock(ctrl)
 
 			cb := circuitbreaker.NewCircuitBreaker(
-				mocks.Cache,
 				tc.request.buckets,
+				mocks.Cache,
 				tc.request.cacheTTL,
 				tc.request.featureName,
 				tc.request.windowDuration,
@@ -178,8 +178,8 @@ func TestCircuitBreaker_CalculateWindowValue(t *testing.T) {
 			tc.mockFn(mocks, tc.request, tc.response)
 
 			cb := circuitbreaker.NewCircuitBreaker(
-				mocks.Cache,
 				tc.request.buckets,
+				mocks.Cache,
 				tc.request.cacheTTL,
 				tc.request.featureName,
 				tc.request.windowDuration,
@@ -289,8 +289,8 @@ func TestCircuitBreaker_IsExceedingThreshold(t *testing.T) {
 			tc.mockFn(mocks, tc.request, tc.response)
 
 			cb := circuitbreaker.NewCircuitBreaker(
-				mocks.Cache,
 				tc.request.buckets,
+				mocks.Cache,
 				tc.request.cacheTTL,
 				tc.request.featureName,
 				tc.request.windowDuration,
@@ -299,6 +299,118 @@ func TestCircuitBreaker_IsExceedingThreshold(t *testing.T) {
 			cb.SetThreshold(tc.request.threshold)
 
 			result := cb.IsExceedingThreshold(tc.request.amount)
+			assert.Equal(t, tc.response.result, result)
+		})
+	}
+}
+
+func TestCircuitBreaker_IsExceedingWarningThreshold(t *testing.T) {
+	type Request struct {
+		ctx    context.Context
+		amount int
+
+		active           bool
+		buckets          []*circuitbreaker.Bucket
+		cacheTTL         time.Duration
+		featureName      string
+		warningThreshold int
+		windowDuration   time.Duration
+	}
+
+	type Response struct {
+		result bool
+	}
+
+	testcases := map[string]struct {
+		request  Request
+		response Response
+		mockFn   func(m *fixture.MockCircuitBreaker, req Request, res Response)
+	}{
+		"IsExceedingWarningThreshold success": {
+			request: Request{
+				ctx:    context.Background(),
+				amount: 20000,
+				active: true,
+				buckets: []*circuitbreaker.Bucket{
+					circuitbreaker.NewBucket(24 * time.Hour),
+				},
+				cacheTTL:         24 * time.Hour,
+				featureName:      "test",
+				warningThreshold: 100000,
+				windowDuration:   24 * time.Hour,
+			},
+			response: Response{
+				result: false,
+			},
+			mockFn: func(m *fixture.MockCircuitBreaker, req Request, res Response) {
+				resMap := make(map[string]int)
+				resMap["cb-test-4h-202305100800"] = 50000
+				resMap["cb-test-4h-202305101200"] = 10000
+				m.Cache.EXPECT().GetMulti(gomock.Any()).Return(resMap)
+			},
+		},
+		"When circuit breaker is inactive, return false": {
+			request: Request{
+				ctx:    context.Background(),
+				amount: 20000,
+				active: false,
+				buckets: []*circuitbreaker.Bucket{
+					circuitbreaker.NewBucket(24 * time.Hour),
+				},
+				cacheTTL:         24 * time.Hour,
+				featureName:      "test",
+				warningThreshold: 100000,
+				windowDuration:   24 * time.Hour,
+			},
+			response: Response{
+				result: false,
+			},
+			mockFn: func(m *fixture.MockCircuitBreaker, req Request, res Response) {},
+		},
+		"IsExceedingWarningThreshold is true": {
+			request: Request{
+				ctx:    context.Background(),
+				amount: 20000,
+				active: true,
+				buckets: []*circuitbreaker.Bucket{
+					circuitbreaker.NewBucket(24 * time.Hour),
+				},
+				cacheTTL:         24 * time.Hour,
+				featureName:      "test",
+				warningThreshold: 100000,
+				windowDuration:   24 * time.Hour,
+			},
+			response: Response{
+				result: true,
+			},
+			mockFn: func(m *fixture.MockCircuitBreaker, req Request, res Response) {
+				resMap := make(map[string]int)
+				resMap["cb-test-4h-202305100800"] = 50000
+				resMap["cb-test-4h-202305101200"] = 60000
+				m.Cache.EXPECT().GetMulti(gomock.Any()).Return(resMap)
+			},
+		},
+	}
+
+	for name, tc := range testcases {
+		t.Run(name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			mocks := fixture.NewCircuitBreakerMock(ctrl)
+			tc.mockFn(mocks, tc.request, tc.response)
+
+			cb := circuitbreaker.NewCircuitBreaker(
+				tc.request.buckets,
+				mocks.Cache,
+				tc.request.cacheTTL,
+				tc.request.featureName,
+				tc.request.windowDuration,
+			)
+			cb.SetActive(tc.request.active)
+			cb.SetWarningThreshold(tc.request.warningThreshold)
+
+			result := cb.IsExceedingWarningThreshold(tc.request.amount)
 			assert.Equal(t, tc.response.result, result)
 		})
 	}
@@ -394,8 +506,8 @@ func TestCircuitBreaker_GenerateKeys(t *testing.T) {
 			mocks := fixture.NewCircuitBreakerMock(ctrl)
 
 			cb := circuitbreaker.NewCircuitBreaker(
-				mocks.Cache,
 				tc.request.buckets,
+				mocks.Cache,
 				tc.request.cacheTTL,
 				tc.request.featureName,
 				tc.request.windowDuration,
@@ -507,8 +619,8 @@ func TestCircuitBreaker_GetTrip(t *testing.T) {
 			tc.mockFn(mocks, tc.request, tc.response)
 
 			cb := circuitbreaker.NewCircuitBreaker(
-				mocks.Cache,
 				tc.request.buckets,
+				mocks.Cache,
 				tc.request.cacheTTL,
 				tc.request.featureName,
 				tc.request.windowDuration,
@@ -626,8 +738,8 @@ func TestCircuitBreaker_GetTripWarning(t *testing.T) {
 			tc.mockFn(mocks, tc.request, tc.response)
 
 			cb := circuitbreaker.NewCircuitBreaker(
-				mocks.Cache,
 				tc.request.buckets,
+				mocks.Cache,
 				tc.request.cacheTTL,
 				tc.request.featureName,
 				tc.request.windowDuration,
@@ -652,10 +764,10 @@ func TestCircuitBreaker_GetWindowDurationStr(t *testing.T) {
 		mocks := fixture.NewCircuitBreakerMock(ctrl)
 
 		cb := circuitbreaker.NewCircuitBreaker(
-			mocks.Cache,
 			[]*circuitbreaker.Bucket{
 				circuitbreaker.NewBucket(24 * time.Hour),
 			},
+			mocks.Cache,
 			24*time.Hour,
 			"test",
 			24*time.Hour,
@@ -758,8 +870,8 @@ func TestCircuitBreaker_UpdateLatestBucketsValue(t *testing.T) {
 			tc.mockFn(mocks, tc.request, tc.response)
 
 			cb := circuitbreaker.NewCircuitBreaker(
-				mocks.Cache,
 				tc.request.buckets,
+				mocks.Cache,
 				tc.request.cacheTTL,
 				tc.request.featureName,
 				tc.request.windowDuration,
@@ -814,8 +926,8 @@ func TestCircuitBreaker_SetActive(t *testing.T) {
 			mocks := fixture.NewCircuitBreakerMock(ctrl)
 
 			cb := circuitbreaker.NewCircuitBreaker(
-				mocks.Cache,
 				tc.request.buckets,
+				mocks.Cache,
 				tc.request.cacheTTL,
 				tc.request.featureName,
 				tc.request.windowDuration,
@@ -869,14 +981,69 @@ func TestCircuitBreaker_SetThreshold(t *testing.T) {
 			mocks := fixture.NewCircuitBreakerMock(ctrl)
 
 			cb := circuitbreaker.NewCircuitBreaker(
-				mocks.Cache,
 				tc.request.buckets,
+				mocks.Cache,
 				tc.request.cacheTTL,
 				tc.request.featureName,
 				tc.request.windowDuration,
 			)
 
 			cb.SetThreshold(tc.request.threshold)
+
+			res := reflect.TypeOf(cb).String()
+			assert.Equal(t, res, "*circuitbreaker.circuitBreaker")
+		})
+	}
+}
+
+func TestCircuitBreaker_SetWarningThreshold(t *testing.T) {
+	type Request struct {
+		ctx              context.Context
+		active           bool
+		buckets          []*circuitbreaker.Bucket
+		cacheTTL         time.Duration
+		featureName      string
+		warningThreshold int
+		windowDuration   time.Duration
+	}
+
+	testcases := map[string]struct {
+		request Request
+	}{
+		"SetWarningThreshold success": {
+			request: Request{
+				ctx:    context.Background(),
+				active: true,
+				buckets: []*circuitbreaker.Bucket{
+					circuitbreaker.NewBucket(4 * time.Hour),
+					circuitbreaker.NewBucket(1 * time.Hour),
+					circuitbreaker.NewBucket(5 * time.Minute),
+					circuitbreaker.NewBucket(1 * time.Minute),
+				},
+				cacheTTL:         24 * time.Hour,
+				featureName:      "test",
+				warningThreshold: 100000,
+				windowDuration:   24 * time.Hour,
+			},
+		},
+	}
+
+	for name, tc := range testcases {
+		t.Run(name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			mocks := fixture.NewCircuitBreakerMock(ctrl)
+
+			cb := circuitbreaker.NewCircuitBreaker(
+				tc.request.buckets,
+				mocks.Cache,
+				tc.request.cacheTTL,
+				tc.request.featureName,
+				tc.request.windowDuration,
+			)
+
+			cb.SetWarningThreshold(tc.request.warningThreshold)
 
 			res := reflect.TypeOf(cb).String()
 			assert.Equal(t, res, "*circuitbreaker.circuitBreaker")
@@ -959,8 +1126,8 @@ func TestCircuitBreaker_UpdateTrip(t *testing.T) {
 			tc.mockFn(mocks, tc.request, tc.response)
 
 			cb := circuitbreaker.NewCircuitBreaker(
-				mocks.Cache,
 				tc.request.buckets,
+				mocks.Cache,
 				tc.request.cacheTTL,
 				tc.request.featureName,
 				tc.request.windowDuration,
@@ -1020,8 +1187,8 @@ func TestCircuitBreaker_UpdateTripWarning(t *testing.T) {
 			tc.mockFn(mocks, tc.request)
 
 			cb := circuitbreaker.NewCircuitBreaker(
-				mocks.Cache,
 				tc.request.buckets,
+				mocks.Cache,
 				tc.request.cacheTTL,
 				tc.request.featureName,
 				tc.request.windowDuration,

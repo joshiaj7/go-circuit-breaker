@@ -21,17 +21,17 @@ type Cache interface {
 }
 
 type cache struct {
-	Cache *goCache.Cache
-
+	Cache              *goCache.Cache
 	ExpirationDuration time.Duration
-	PurgeDuration      time.Duration
 }
 
-func NewCache(expirationDuration time.Duration, purgeDuration time.Duration) Cache {
+func NewCache(
+	gocache *goCache.Cache,
+	expirationDuration time.Duration,
+) Cache {
 	return &cache{
-		Cache:              goCache.New(expirationDuration, purgeDuration),
+		Cache:              gocache,
 		ExpirationDuration: expirationDuration,
-		PurgeDuration:      purgeDuration,
 	}
 }
 
@@ -58,9 +58,10 @@ func (c *cache) GetMulti(keys []string) interface{} {
 	result := make(map[string]interface{})
 	for _, key := range keys {
 		object, _ := c.Cache.Get(key)
-		result[key] = object
+		if object != nil {
+			result[key] = object
+		}
 	}
-
 	return result
 }
 
