@@ -519,6 +519,86 @@ func TestCircuitBreaker_GenerateKeys(t *testing.T) {
 	}
 }
 
+func TestCircuitBreaker_GetActive(t *testing.T) {
+	type Request struct {
+		ctx            context.Context
+		buckets        []*circuitbreaker.Bucket
+		active         bool
+		cacheTTL       time.Duration
+		featureName    string
+		threshold      int
+		windowDuration time.Duration
+	}
+
+	type Response struct {
+		result bool
+	}
+
+	testcases := map[string]struct {
+		request  Request
+		response Response
+	}{
+		"GetActive true success": {
+			request: Request{
+				ctx:    context.Background(),
+				active: true,
+				buckets: []*circuitbreaker.Bucket{
+					circuitbreaker.NewBucket(4 * time.Hour),
+					circuitbreaker.NewBucket(1 * time.Hour),
+					circuitbreaker.NewBucket(5 * time.Minute),
+					circuitbreaker.NewBucket(1 * time.Minute),
+				},
+				cacheTTL:       24 * time.Hour,
+				featureName:    "test",
+				threshold:      100000,
+				windowDuration: 24 * time.Hour,
+			},
+			response: Response{
+				result: true,
+			},
+		},
+		"GetActive false success": {
+			request: Request{
+				ctx:    context.Background(),
+				active: false,
+				buckets: []*circuitbreaker.Bucket{
+					circuitbreaker.NewBucket(4 * time.Hour),
+					circuitbreaker.NewBucket(1 * time.Hour),
+					circuitbreaker.NewBucket(5 * time.Minute),
+					circuitbreaker.NewBucket(1 * time.Minute),
+				},
+				cacheTTL:       24 * time.Hour,
+				featureName:    "test",
+				threshold:      100000,
+				windowDuration: 24 * time.Hour,
+			},
+			response: Response{
+				result: false,
+			},
+		},
+	}
+
+	for name, tc := range testcases {
+		t.Run(name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			mocks := fixture.NewCircuitBreakerMock(ctrl)
+			cb := circuitbreaker.NewCircuitBreaker(
+				tc.request.buckets,
+				mocks.Cache,
+				tc.request.cacheTTL,
+				tc.request.featureName,
+				tc.request.windowDuration,
+			)
+			cb.SetActive(tc.request.active)
+
+			result := cb.GetActive()
+			assert.Equal(t, tc.response.result, result)
+		})
+	}
+}
+
 func TestCircuitBreaker_GetTrip(t *testing.T) {
 	type Request struct {
 		ctx            context.Context

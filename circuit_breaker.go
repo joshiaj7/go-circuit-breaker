@@ -25,6 +25,7 @@ var (
 type CircuitBreaker interface {
 	CalculateWindowValue() int
 	GenerateKeys(currentTime time.Time) []string
+	GetActive() bool
 	GetTrip() (bool, error)
 	GetTripWarning() (bool, error)
 	GetWindowDurationStr() string
@@ -143,6 +144,11 @@ func (c *circuitBreaker) GenerateKeys(currentTime time.Time) []string {
 	}
 
 	return result
+}
+
+// GetActive retrieves trip from cache
+func (c *circuitBreaker) GetActive() bool {
+	return c.Active
 }
 
 // GetTrip retrieves trip from cache
