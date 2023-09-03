@@ -14,7 +14,7 @@ import (
 
 func TestCache_NewCache(t *testing.T) {
 	type Request struct {
-		goCache            *goCache.Cache
+		goCache            circuitbreaker.Adapter
 		expirationDuration time.Duration
 	}
 
@@ -41,7 +41,7 @@ func TestCache_NewCache(t *testing.T) {
 
 func TestCache_Get(t *testing.T) {
 	type Request struct {
-		goCache            *goCache.Cache
+		goCache            circuitbreaker.Adapter
 		expirationDuration time.Duration
 		key                string
 	}
@@ -107,7 +107,7 @@ func TestCache_Get(t *testing.T) {
 
 func TestCache_Set(t *testing.T) {
 	type Request struct {
-		goCache            *goCache.Cache
+		goCache            circuitbreaker.Adapter
 		expirationDuration time.Duration
 		key                string
 		value              interface{}
@@ -155,7 +155,7 @@ func TestCache_Set(t *testing.T) {
 
 func TestCache_GetMulti(t *testing.T) {
 	type Request struct {
-		goCache            *goCache.Cache
+		goCache            circuitbreaker.Adapter
 		expirationDuration time.Duration
 		keys               []string
 	}
@@ -219,7 +219,7 @@ func TestCache_GetMulti(t *testing.T) {
 
 func TestCache_IncrementInt(t *testing.T) {
 	type Request struct {
-		goCache            *goCache.Cache
+		goCache            circuitbreaker.Adapter
 		expirationDuration time.Duration
 		key                string
 		val                int

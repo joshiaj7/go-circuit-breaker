@@ -3,8 +3,6 @@ package circuitbreaker
 import (
 	"errors"
 	"time"
-
-	goCache "github.com/patrickmn/go-cache"
 )
 
 //go:generate mockgen -destination=mock/cache_mock.go -package=mock --build_flags=--mod=mod go-circuit-breaker Cache
@@ -21,12 +19,12 @@ type Cache interface {
 }
 
 type cache struct {
-	Cache              *goCache.Cache
+	Cache              Adapter
 	ExpirationDuration time.Duration
 }
 
 func NewCache(
-	gocache *goCache.Cache,
+	gocache Adapter,
 	expirationDuration time.Duration,
 ) Cache {
 	return &cache{
